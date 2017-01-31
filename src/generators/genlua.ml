@@ -1422,6 +1422,7 @@ let path_to_brackets path =
 	let parts = ExtString.String.nsplit path "." in
 	"[\"" ^ (String.concat "\"][\"" parts) ^ "\"]"
 
+
 let gen_class_static_field ctx c f =
 	match f.cf_expr with
 	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
@@ -1483,6 +1484,52 @@ let gen_class_field ctx c f predelimit =
 		    ctx.in_loop <- snd old;
 		    ctx.separator <- true;
 		| _ -> gen_value ctx e)
+
+let ffi_type ctx t = begin
+    match t with
+	|TAbstract(t,p) ->
+		match t.a_path with
+		| ([], "Int") ->
+			"int";
+		| _ ->
+			"waaa";
+	|_ -> "wwaa21"
+end
+
+let gen_ffi_class_static_field ctx c f = begin
+    match f.cf_type with
+    | TFun (args, t) ->
+	    spr ctx (ffi_type ctx t);
+	    spr ctx " ";
+	    spr ctx f.cf_name;
+	    spr ctx "(";
+	    spr ctx (String.concat ", " (List.map (fun (_, _, t) -> ffi_type ctx t) args));
+	    spr ctx ");"
+    | _->()
+end
+
+
+let generate_ffi_require ctx path meta =
+	let _, args, mp = Meta.get Meta.LuaFfiRequire meta in
+	let p = (s_path ctx path) in
+	generate_package_create ctx path;
+	print ctx "%s = " p;
+	spr ctx "ffi.load('";
+	(match args with
+	| [(EConst(String(module_name)),_)] ->
+	    spr ctx module_name
+	| _ ->
+		abort "Unsupported @:luaRequire format" mp);
+	println ctx "');"
+
+let generate_ffi_class ctx c =
+    println ctx "local ffi = require('ffi');";
+    generate_ffi_require ctx c.cl_path c.cl_meta;
+    println ctx "ffi.cdef[[";
+    List.iter (gen_ffi_class_static_field ctx c) c.cl_ordered_statics;
+    newline ctx;
+    println ctx "]]"
+
 
 let generate_class___name__ ctx c =
 	if has_feature ctx "lua.Boot.isClass" then begin
@@ -1714,6 +1761,8 @@ let generate_type ctx = function
 		(* A special case for Std because we do not want to generate it if it's empty. *)
 		if p = "Std" && c.cl_ordered_statics = [] then
 			()
+		else if Meta.has Meta.LuaFfiRequire c.cl_meta then
+			generate_ffi_class ctx c
 		else if not c.cl_extern then
 			generate_class ctx c
 		else if Meta.has Meta.LuaRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
@@ -1942,7 +1991,8 @@ let generate com =
 	List.iter (generate_type_forward ctx) com.types; newline ctx;
 
 	(* Generate some dummy placeholders for utility libs that may be required*)
-	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw";
+	println ctx "local _hx_bind, _hx_bit, _hx_staticToInstance, _hx_funcToField, _hx_maxn, _hx_print, _hx_apply_self, _hx_box_mr, _hx_bit_clamp, _hx_table, _hx_bit_raw;";
+	println ctx "local ffi = require('ffi');";
 
 	List.iter (transform_multireturn ctx) com.types;
 	List.iter (generate_type ctx) com.types;
