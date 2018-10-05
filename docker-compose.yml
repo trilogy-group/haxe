@@ -1,0 +1,13 @@
+version: "3.2"
+services:
+  haxe:
+    build:
+      context: .
+    volumes:
+      - "./:/data"
+      - "haxe-output:/haxe-output"
+    environment:
+      - "FORCE_HAXE_MAKE=true"
+    command: /etc/haxe-unit-test-java-run.sh
+volumes:
+  haxe-output:

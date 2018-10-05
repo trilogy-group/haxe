@@ -1,0 +1,15 @@
+version: '2'
+name: haxe-coll
+images:
+- name: haxe-image
+  url: registry2.swarm.devfactory.com/parvsharma/haxe-3:latest
+configs:
+- name: haxe-config
+  containers:
+  - name: haxe
+    image: haxe-image
+    command:
+    - tail
+    args:
+    - -f
+    - /dev/null
