@@ -1,0 +1,16 @@
+version: '3.2'
+services:
+  haxe-devspaces:
+    build:
+      context: ""
+      dockerfile: Dockerfile
+    entrypoint: tail -f /dev/null
+    volumes:
+    - type: bind
+      source: ../../
+      target: /data
+    container_name: haxe-devspaces
+    networks:
+    - haxe_net
+networks:
+  haxe_net:
